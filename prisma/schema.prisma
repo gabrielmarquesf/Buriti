@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./casa_buriti.db"
+}
+
+model Evento {
+  id         String          @id @default(uuid())
+  nome       String
+  dataInicio DateTime
+  dataFim    DateTime
+  descricao  String?
+  status     String          @default("ativo")
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  produtos   ProdutoEvento[]
+  vendas     Venda[]
+}
+
+model CategoriaProduto {
+  id        String    @id @default(uuid())
+  nome      String
+  descricao String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  produtos  Produto[]
+}
+
+model Produto {
+  id              String           @id @default(uuid())
+  nome            String
+  descricao       String?
+  categoriaId     String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  categoria       CategoriaProduto @relation(fields: [categoriaId], references: [id])
+  produtosEventos ProdutoEvento[]
+}
+
+model ProdutoEvento {
+  id         String      @id @default(uuid())
+  produtoId  String
+  eventoId   String
+  preco      Float
+  estoque    Int         @default(0)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  evento     Evento      @relation(fields: [eventoId], references: [id])
+  produto    Produto     @relation(fields: [produtoId], references: [id])
+  vendaItens VendaItem[]
+
+  @@unique([produtoId, eventoId])
+}
+
+model Venda {
+  id             String      @id @default(uuid())
+  eventoId       String
+  dataHora       DateTime    @default(now())
+  valorTotal     Float
+  formaPagamento String
+  status         String      @default("concluida")
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  evento         Evento      @relation(fields: [eventoId], references: [id])
+  itens          VendaItem[]
+}
+
+model VendaItem {
+  id              String        @id @default(uuid())
+  vendaId         String
+  produtoEventoId String
+  quantidade      Int
+  precoUnitario   Float
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  produtoEvento   ProdutoEvento @relation(fields: [produtoEventoId], references: [id])
+  venda           Venda         @relation(fields: [vendaId], references: [id])
+}
+
+model Usuario {
+  id        String   @id @default(uuid())
+  nome      String
+  email     String   @unique
+  senha     String
+  papel     String   @default("caixa")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

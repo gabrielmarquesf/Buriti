@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Serviço de Impressão Casa Buriti</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #4f46e5;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+
+        p {
+            color: #374151;
+            margin: 5px 0;
+        }
+
+        .status {
+            color: #059669;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #dc2626;
+            font-weight: bold;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #374151;
+            font-weight: 500;
+        }
+
+        select,
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            background-color: white;
+            margin-bottom: 5px;
+        }
+
+        button {
+            background-color: #4f46e5;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background-color: #4338ca;
+        }
+
+        button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .config-section {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .status-section {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .refresh-icon {
+            cursor: pointer;
+            vertical-align: middle;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="status-section">
+            <h1>Serviço de Impressão Casa Buriti</h1>
+            <p>Status: <span id="statusText" class="status">Ativo</span></p>
+            <p>Porta: 8338</p>
+        </div>
+
+        <div class="config-section">
+            <h2 style="margin-bottom: 15px; color: #4f46e5;">Configuração da Impressora</h2>
+
+            <div class="form-group">
+                <label for="printerType">Tipo de Impressora:</label>
+                <select id="printerType">
+                    <option value="EPSON">EPSON</option>
+                    <option value="STAR">STAR</option>
+                    <option value="BEMATECH">BEMATECH</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="printerName">
+                    Impressora:
+                    <svg class="refresh-icon" id="refreshPrinters" width="16" height="16" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3" />
+                    </svg>
+                </label>
+                <select id="printerName">
+                    <option value="">Carregando impressoras...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="characterSet">Conjunto de Caracteres:</label>
+                <select id="characterSet">
+                    <option value="PC860_PORTUGUESE">Português (PC860)</option>
+                    <option value="PC850_MULTILINGUAL">Multilingual (PC850)</option>
+                    <option value="BRAZIL">Brasil (ABICOMP)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="timeout">Timeout (ms):</label>
+                <input type="number" id="timeout" value="5000" min="1000" step="1000">
+            </div>
+
+            <button id="saveConfig">Salvar Configuração</button>
+            <button id="testPrint" style="margin-left: 10px;">Imprimir Teste</button>
+        </div>
+
+        <p style="margin-top: 20px; font-size: 0.9em; color: #6b7280;">Esta janela pode ser minimizada</p>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        // Função para carregar a lista de impressoras
+        function loadPrinters() {
+            ipcRenderer.send('list-printers');
+            document.getElementById('printerName').innerHTML = '<option value="">Carregando impressoras...</option>';
+        }
+
+        // Carregar configuração atual e lista de impressoras ao iniciar
+        window.addEventListener('load', () => {
+            ipcRenderer.send('get-config');
+            loadPrinters();
+        });
+
+        // Receber configuração atual
+        ipcRenderer.on('config', (event, config) => {
+            document.getElementById('printerType').value = config.type;
+            document.getElementById('characterSet').value = config.characterSet;
+            document.getElementById('timeout').value = config.options.timeout;
+            // Não definimos o printerName aqui pois ele será preenchido quando a lista de impressoras for carregada
+        });
+
+        // Receber lista de impressoras
+        ipcRenderer.on('printers-list', (event, printers) => {
+            const select = document.getElementById('printerName');
+            const currentValue = select.value;
+
+            select.innerHTML = '<option value="">Selecione uma impressora...</option>';
+            printers.forEach(printer => {
+                const option = document.createElement('option');
+                option.value = printer;
+                option.textContent = printer;
+                select.appendChild(option);
+            });
+
+            // Se já tiver uma impressora configurada, seleciona ela
+            if (currentValue) {
+                select.value = currentValue;
+            }
+        });
+
+        // Atualizar lista de impressoras
+        document.getElementById('refreshPrinters').addEventListener('click', loadPrinters);
+
+        // Salvar configuração
+        document.getElementById('saveConfig').addEventListener('click', () => {
+            const printerName = document.getElementById('printerName').value;
+            if (!printerName) {
+                const statusText = document.getElementById('statusText');
+                statusText.textContent = 'Selecione uma impressora';
+                statusText.className = 'error';
+                return;
+            }
+
+            const config = {
+                type: document.getElementById('printerType').value,
+                interface: 'printer:' + printerName,
+                characterSet: document.getElementById('characterSet').value,
+                options: {
+                    timeout: parseInt(document.getElementById('timeout').value)
+                }
+            };
+            ipcRenderer.send('save-config', config);
+        });
+
+        // Imprimir teste
+        document.getElementById('testPrint').addEventListener('click', () => {
+            ipcRenderer.send('test-print');
+        });
+
+        // Receber status
+        ipcRenderer.on('status', (event, { success, message }) => {
+            const statusText = document.getElementById('statusText');
+            statusText.textContent = message;
+            statusText.className = success ? 'status' : 'error';
+        });
+    </script>
+</body>
+
+</html>
